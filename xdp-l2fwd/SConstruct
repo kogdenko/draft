@@ -1,0 +1,4 @@
+env = Environment(
+    CCFLAGS = '-O2 -g',
+    LINKFLAGS = '-lbpf')
+env.Program('xdp-l2fwd', 'xdp-l2fwd.c')
