@@ -1,0 +1,9 @@
+__________________________________________________________
+systemctl status systemd-networkd
+# failed
+# Error: 13 (Permission)
+
+# /usr/lib/systemd/system/systemd-networkd.socket
+[Unit]
++After=dbus.service
+
