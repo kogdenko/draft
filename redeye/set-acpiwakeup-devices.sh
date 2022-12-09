@@ -8,5 +8,9 @@ disable()
 	fi
 }
 
+for file in `grep -l . /sys/bus/usb/devices/*/power/wakeup`; do
+	echo disabled > $file
+done
+
 disable PTXH
 disable GPP0
