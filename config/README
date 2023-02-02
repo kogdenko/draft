@@ -10,3 +10,7 @@ systemctl status systemd-networkd
 __________________________________________________________
 Make bootable USB
 dd if=/home/k.kogdenko/Downloads/ubuntu-22.04.1-desktop-amd64.iso of=/dev/sdd bs=1M status=progress
+__________________________________________________________
+Start Week from Monaday
+/etc/locale.conf
+LC_TIME="en_GB.UTF-8"
