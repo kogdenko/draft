@@ -1,4 +1,5 @@
 __________________________________________________________
+IP adresses doewnt appear on interfaces
 systemctl status systemd-networkd
 # failed
 # Error: 13 (Permission)
@@ -6,4 +7,6 @@ systemctl status systemd-networkd
 # /usr/lib/systemd/system/systemd-networkd.socket
 [Unit]
 +After=dbus.service
-
+__________________________________________________________
+Make bootable USB
+dd if=/home/k.kogdenko/Downloads/ubuntu-22.04.1-desktop-amd64.iso of=/dev/sdd bs=1M status=progress
