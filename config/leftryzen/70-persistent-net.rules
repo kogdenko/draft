@@ -1,5 +1,5 @@
 # /etc/udev/rules.d/70-persistent-net.rules
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d4", NAME="eth20"
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d5", NAME="eth21"
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3c", NAME="eth30"
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3d", NAME="eth31"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d4", NAME="eth20" # 0000:03:00.0
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d5", NAME="eth21" # 0000:03:00.1
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3c", NAME="eth30" # 0000:09:00.0
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3d", NAME="eth31" # 0000:09:00.1
