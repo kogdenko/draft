@@ -6,6 +6,7 @@ nic()
 	ifconfig $1 promisc up                                    
 	ethtool -L $1 combined 1
 	ethtool -G $1 rx 2048 tx 2048
+	ethtool -A $1 rx off tx off
 }
 
 rmmod ixgbe
