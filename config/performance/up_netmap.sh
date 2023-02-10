@@ -3,13 +3,20 @@
 
 nic()
 {
-	ifconfig $1 promisc up                                    
-	ethtool -L $1 combined 1
-	ethtool -G $1 rx 2048 tx 2048
-	ethtool -A $1 rx off tx off
+	if ifconfig -a -s | grep $1 > /dev/null;
+	then
+		ifconfig $1 promisc up
+		ethtool -L $1 combined 1
+		ethtool -G $1 rx 2048 tx 2048
+		sleep 1
+		ethtool -A $1 rx off tx off
+	fi
 }
 
+set -x
+
 rmmod ixgbe
+rmmod netmap
 insmod ./netmap.ko
 insmod ./ixgbe/ixgbe.ko
 

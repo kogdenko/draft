@@ -15,7 +15,7 @@ fx8350:	rx:ix2a, tx:ix2b			 8.9 Mpps
 fx8350:	rx:ix3a, tx:ix3b			 8.9 Mpps 
 fx8350:	rx:ix1a, tx:ix3a			14.5 Mpps
 
-lrf:	rx:ix1a: tx:ix1b			10.2 Mpps
-
+lrf:	rx:ix1a, tx:ix1b			10.2 Mpps
+	rx:ix2a, tx:ix2b			10.2 Mpps
 
 
