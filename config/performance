@@ -1,0 +1,14 @@
+fx8350: Fedora 37 / 6.1.11
+
+fx8350 pkt-gen rx:ix0a, tx:ix0b			8.9 Mpps
+	ethtool -L $NIC combined 1
+	ethtool -G $NIC rx 2048 tx 2048
+	ethtool -A $NIC rx off tx off
+
+fx8350 pkt-gen rx:ix1a, tx:ix1b			8.9 Mpps 
+
+fx8350 pkt-gen rx:ix2a, tx:ix2b			8.9 Mpps 
+
+fx8350 pkt-gen rx:ix3a, tx:ix3b			8.9 Mpps 
+
+fx8350 pkt-gen rx:ix1a, tx:ix3a			14.5 Mpps

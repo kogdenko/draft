@@ -14,3 +14,10 @@ __________________________________________________________
 Start Week from Monaday
 /etc/locale.conf
 LC_TIME="en_GB.UTF-8"
+_________________________________________________________
+NETMAP
+./configure --no-ext-drivers --apps=pkt-gen --drivers=ixgbe,veth.c
+make
+make install # modules and headers
+_________________________________________________________
+
