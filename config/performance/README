@@ -1,14 +1,21 @@
-fx8350: Fedora 37 / 6.1.11
+fx8350: AMD FX 8350 / Fedora 37 / 6.1.11
+	netmap: 
 
-fx8350 pkt-gen rx:ix0a, tx:ix0b			8.9 Mpps
-	ethtool -L $NIC combined 1
-	ethtool -G $NIC rx 2048 tx 2048
-	ethtool -A $NIC rx off tx off
+lrf: AMD Ryzen 5950x / Fedora 37 / 6.1.10
+	netmap: Thu Feb 2 12:19:35 2023 +0100 / d6c9227aa310c95cab6160b2fb24b068fd8d36f5
 
-fx8350 pkt-gen rx:ix1a, tx:ix1b			8.9 Mpps 
+pkt-gen:
+ethtool -L $NIC combined 1
+ethtool -G $NIC rx 2048 tx 2048
+ethtool -A $NIC rx off tx off
 
-fx8350 pkt-gen rx:ix2a, tx:ix2b			8.9 Mpps 
+fx8350:	rx:ix0a, tx:ix0b			 8.9 Mpps
+fx8350:	rx:ix1a, tx:ix1b			 8.9 Mpps 
+fx8350:	rx:ix2a, tx:ix2b			 8.9 Mpps 
+fx8350:	rx:ix3a, tx:ix3b			 8.9 Mpps 
+fx8350:	rx:ix1a, tx:ix3a			14.5 Mpps
 
-fx8350 pkt-gen rx:ix3a, tx:ix3b			8.9 Mpps 
+lrf:	rx:ix1a: tx:ix1b			10.2 Mpps
 
-fx8350 pkt-gen rx:ix1a, tx:ix3a			14.5 Mpps
+
+
