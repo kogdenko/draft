@@ -22,9 +22,12 @@ insmod ./ixgbe/ixgbe.ko
 
 nic ix0a
 nic ix0b
+
 nic ix1a
-nic ix2b
+nic ix1b
+
 nic ix2a
 nic ix2b
+
 nic ix3a
 nic ix3b
