@@ -20,4 +20,144 @@ NETMAP
 make
 make install # modules and headers
 _________________________________________________________
+VIRT-MANAGER
 
+virt-df -h 
+
+qemu-img resize /tmp/jammy-server-cloudimg-amd64.img +10G
+vm$ parted
+vm$ reizepart 1
+vm$ resize2fd /dev/sda1
+
+virt-install --name mts-directconnect-lu --memory 4096 --disk /tmp/jammy-server-cloudimg-amd64.img --import
+
+apt install libguestfs-tools
+virt-customize -a /tmp/jammy-server-cloudimg-amd64.img --root-password password:qwerty
+
+virsh list --all
+virsh shutdown mts-directconnect-lu
+
+virsh domrename mts-directconnect-lu vlu
+
+virsh snapshot-list vlu
+
+export EDITOR=vim
+
+virt-clone --original vlu --name vru --auto-clone
+
+virsh domblklist vlu
+virsh dominfo vlu
+virsh domiflist vlu
+virsh vcpuinfo vlu
+virsh vcpucount vlu
+
+virsh setvcpus vlu 2 --maximum --config
+virsh setvcpus vlu 2 --config
+
+virsh setmaxmem --config vlu 8192M
+virsh setmem --config vlu 8192M
+
+
+virsh attach-interface --domain vlu  --type network --model virtio --source sw0 --persistent
+
+virsh net-list --all
+virsh net-destroy test
+virsh net-dumpxml test
+virsh net-define ./sw0.xml
+virsh net-autostart sw0
+virsh net-start sw0
+____________________________________________________
+DPDK
+
+meson build
+cd build
+ninja
+
+echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+./usertools/dpdk-devbind.py -b vfio-pci 0000:04:00.0
+modprobe vfio-pci
+
+./usertools/dpdk-devbind.py -b uio_pci_generic 0000:04:00.0
+
+echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+mount -t hugetlbfs hugetlbfs /mnt/huge
+
+dpdk-testpmd -b 0000:08:00.1  -l 8-9 --proc-type=primary --file-prefix=pmd0 --vdev=net_memif0,role=client,socket=/run/vpp/memif.sock,secret=123,id=0,socket-abstract=no -- -i
+
+dpdk-testpmd -b 0000:08:00.0  -l 10,11 --proc-type=primary --file-prefix=pmd1 --vdev=net_memif0,role=client,socket=/run/vpp/memif.sock,secret=123,id=1,socket-abstract=no -- -i
+
+show port info 2
+show port stats 0
+
+set portlist 0,1
+start
+__________________________________________________________
+DOCKER
+
+docker pull ubuntu:20.04
+
+## give interface to docker
+NSPID=$(docker inspect --format='{{ .State.Pid }}' $container)
+ip link set "$HOST_IFACE" netns "$NSPID"
+
+## run vpp in docker
+docker run -it --privileged -v /sys/bus/pci/devices:/sys/bus/pci/devices -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v /dev:/dev -v /mnt/huge:/mnt/huge --name vpp2001 8d3ccc49202b /bin/bash
+
+## run another shell
+docker exec -it 387feabb0f3c /bin/bash
+
+docker commit {container_id} {new_image_name}
+
+docker rm [container_id]
+docker image rm 8ff3fa9a5335
+
+docker ps -a
+docker container start fc3238e9c873
+docker attach fc3238e9c873
+docker import /home/kkogdenko/Documents/ubuntu2204_vpp2210_0.2.tar
+
+__________________________________________________________
+VPP
+
+make install-dep
+make install-ext-dep
+make build
+
+./configure -w
+./configure -i /usr/local --native-only
+ninja
+ninja install
+
+show hardware
+show interface
+show interface address
+show ip fib
+# ip link add vpp-vrf13 type vrf table 13
+ip table add 13
+show ip table
+# ip l s dev ix1a master vpp-vrf13
+set interface ip table TenGigabitEthernet8/0/0 13
+
+lcp create TenGigabitEthernet4/0/0 host-if eth2
+lcp create TenGigabitEthernet4/0/1 host-if eth3
+set interface state TenGigabitEthernet8/0/0 up
+set interface ip address TenGigabitEthernet8/0/0 10.10.10.1/24
+set interface ip address del TenGigabitEthernet8/0/0 10.10.10.1/24
+
+ip route add 10.10.20.0/24 via 10.10.10.2 TenGigabitEthernet8/0/0
+
+create interface memif master
+
+show logging
+show logging configuration
+show features verbose
+set logging class linux-cp rate-limit 1000 level warn syslog-level notice
+
+show crypto handlers
+set interface rx-mode local0 interrupt
+show interface rx-placement
+
+show ip neighbor
+set ip neighbor static TenGigabitEthernet8/0/1 192.168.31.13 90:e2:ba:b3:bb:d5
+
+vat2 --dump-apis
