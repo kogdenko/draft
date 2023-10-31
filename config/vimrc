@@ -6,4 +6,7 @@ set nobackup
 set nowritebackup
 set noswapfile
 
+set tabstop=8
+filetype plugin indent off
+
 syntax on
