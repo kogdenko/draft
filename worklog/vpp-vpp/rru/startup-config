@@ -1,0 +1,6 @@
+lcp create TenGigabitEthernet8/0/0 host-if ix1a
+lcp create TenGigabitEthernet8/0/1 host-if ix1b
+lcp lcp-sync on
+
+create loopback interface instance 100
+set interface ip addr loop100 10.3.7.7/32

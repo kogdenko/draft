@@ -1,0 +1,11 @@
+lcp create GigabitEthernet0/9/0 host-if ix1a
+lcp create GigabitEthernet0/a/0 host-if ix1b
+lcp lcp-sync on
+
+set interface rx-mode local0 interrupt
+
+set interface rx-mode tap1 interrupt
+set interface rx-mode tap2 interrupt
+
+#set logging class linux-cp syslog-level debug rate-limit 1000
+#set logging class nl syslog-level debug rate-limit 1000

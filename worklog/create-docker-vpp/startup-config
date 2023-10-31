@@ -1,0 +1,5 @@
+# /var/run/startup-config
+create interface memif master
+create interface memif id 1 master
+lcp create memif0/0 host-if eth2
+lcp create memif0/1 host-if eth3

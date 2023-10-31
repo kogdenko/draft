@@ -1,0 +1,67 @@
+lrf                                        rru
+Left Ryzen Fedora                          Right Ryzen Ubuntu
+
+ix3a (src:16.0.0.1) ---------------------- ix1a (vpp)
+90:e2:ba:b3:bb:d4                          00:1b:21:a6:e5:3c
+0000:08:00.0                               0000:08:00.0
+192.168.30.13/24                           192.168.30.11/24
+
+
+ix3b (src 48.0.0.1)_______________________ ix1b (vpp)
+90:e2:ba:b3:bb:d5  _______________________ 00:1b:21:a6:e5:3d
+0000:08:00.1                               0000:08:00.1
+192.168.31.13/24                           192.168.31.11/24
+
+
+ix2a (docker, vpp) ----------------------- ix0a (pkt-gen:src:48.0.0.0)
+0:1b:21:65:a0:10                           00:1b:21:95:69:64
+0000:09:00.0                               0000:04:00.0
+192.168.20.12/24                           192.168.20.10/24
+
+
+ix2b ------------------------------------- ix0b
+00:1b:21:65:a0:11                          00:1b:21:95:69:65
+0000:09:00.1                               0000:04:00.1
+
+
+lrf: ip netns exec net ping 48.0.0.1
+
+
+lrf
+ip netns exec net ping 48.0.0.1
+pkt-gen -i ix3a -s 16.0.0.1 -d 48.0.0.1-48.0.20.255 -S 90:e2:ba:b3:bb:d4 -D 00:1b:21:a6:e5:3c -l 64 -f tx -a 3
+
+rru:pkt-gen
+ip netns exec gen pkt-gen -i ix0a -f rx -a 3
+
+---------------------------------------------------------------
+rru:
+поднимаем vpp в связке со strongswan. vpp поднимается в докере с
+двумя интерфйсами ix1a, ix1b.
+./bin/vpp -c /etc/vpp/startup.conf
+
+потом поднимаем strongswan с плагином из репозитория
+/usr/local/lib/ipsec/plugins/libstrongswan-kernel-vpp.so
+/etc/swanctl/conf.d/swanctl.conf
+/updown.sh  - из репозитория
+
+Запускам конфигурайионный скрипт
+rr-routebased.sh
+swanctl --load-all
+
+Запускаем вспомогательный демон
+./bin/naas-route-based-updown -L 6000 --loop loop100
+
+На хосте надо сконфигурить интерфейс
+ix0a
+rr-client.sh
+
+-----------------------
+lrf:
+поднимал strongswan с линуксом.
+src/charon/charon
+
+Конфигурайионный скрипт lr.sh
+
+Запускаем тест из респозитория
+python ./tests/test-swanctl.py

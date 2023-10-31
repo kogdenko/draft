@@ -1,0 +1,47 @@
+docker pull ubuntu:22.04
+docker run -it --privileged -v /sys/bus/pci/devices:/sys/bus/pci/devices -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v /dev:/dev -v /mnt/huge:/mnt/huge -v /run/vpp:/run/vpp  --name ubuntu2204_vpp2210 a8780b506fa4
+unminimize
+apt install git make sudo gperf yacc bison flex net-tools iproute2 vim
+cd ~
+git clone https://github.com/FDio/vpp.git
+cd vpp
+git checkout v22.10
+make install-dep
+make install-ext-dep
+# ./configure -n -t release
+# ninja
+make build-release
+make pkg-deb
+dpkg -i build-root/*.deb
+cd extras/strongswan/vpp_sswan
+### mkdir ../../../build/external/downloads
+# Remove --enable-systemd from Makefile
+make
+cd ../../../build-root/build-vpp-native/external/sswan
+make install
+cp /root/vpp/extras/strongswan/vpp_sswan/kernel-vpp.conf  /etc/strongswan.d/charon/kernel-vpp.conf
+cp /root/vpp/extras/strongswan/vpp_sswan/libstrongswan-kernel-vpp.so /usr/lib/ipsec/plugins
+# make sure this files exists
+# /etc/swanctl/x509ca/strongswanCert.pem
+# /etc/swanctl/conf.d/swanctl.conf
+# /root/vpp/startup.conf
+# /root/sun.sh
+# /run/vpp/startup-config
+
+# 1 Run VPP
+/root/vpp/build-root/build-vpp-native/vpp/bin/vpp -c startup.conf
+create interface memif master
+create interface memif id 1 master
+set interface state memif0/0 up
+set interface state memif0/1 up
+lcp create memif0/0 host-if eth2
+lcp create memif0/1 host-if eth3
+
+# 2 Configure network
+/root/sun.sh
+
+# 3 Run sswan
+/root/vpp/build-root/build-vpp-native/external/sswan/src/charon/charon
+
+# 4 Configure sswan
+/root/vpp/build-root/build-vpp-native/external/sswan/src/swanctl/swanctl --load-all
