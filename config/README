@@ -29,7 +29,7 @@ vm$ parted
 vm$ reizepart 1
 vm$ resize2fd /dev/sda1
 
-virt-install --name mts-directconnect-lu --memory 4096 --disk /tmp/jammy-server-cloudimg-amd64.img --import
+virt-install  --osinfo detect=on,require=off --name vru --memory 16384 --disk /var/lib/libvirt/images/vru.img --import
 
 apt install libguestfs-tools
 virt-customize -a /tmp/jammy-server-cloudimg-amd64.img --root-password password:qwerty
@@ -69,9 +69,13 @@ virsh net-define ./sw0.xml
 virsh net-autostart sw0
 virsh net-start sw0
 
+virsh net-edit default
+virsh net-destroy default
+virsh net-start default
+brctl addif virbr0 vnet52 # for each vm
+
 virsh shutdown vlu
 virt-clone --original vlu --name vucp --auto-clone
-
 
 virsh dumpxml vlu > /tmp/vlu.xml
 virsh define /tmp/vlu.xml
@@ -134,6 +138,17 @@ docker container start fc3238e9c873
 docker attach fc3238e9c873
 docker import /home/kkogdenko/Documents/ubuntu2204_vpp2210_0.2.tar
 
+
+__________________________________________________________
+DPKG
+
+dpkg -i 1.deb
+dpkg --contents 1.deb
+
+ar -x 1.deb
+unzstd data.tar.zst
+tar -xvf data.tar
+
 __________________________________________________________
 VPP
 
@@ -150,7 +165,7 @@ ninja install
 plugins {
 	add-path /root/naas/bin
 
-show hardware
+show hardware-interface # MAC addresses
 show interface
 show interface address
 show ip fib table 0
@@ -187,4 +202,80 @@ set ip neighbor static TenGigabitEthernet8/0/1 192.168.31.13 90:e2:ba:b3:bb:d5
 show ipsec sa
 ipsec sa del 1
 
+clear trace
+trace add dpdk-input 10
+show trace
+
+
 vat2 --dump-apis
+
+__________________________________________________________
+Cisco Trex
+
+# cat /etc/trex_cfg.yaml
+
+- version: 2
+#  interfaces: ['00:08.0', '00:09.0']
+  interfaces: ['00:08.0', 'dummy']
+
+  port_info:
+      - dest_mac: 52:54:00:e0:50:95
+        src_mac:  52:54:00:f6:53:26
+      - dest_mac: 52:54:00:fb:b4:26
+        src_mac:  52:54:00:a9:82:25
+
+  platform:
+      master_thread_id: 0
+      latency_thread_id: 1
+      dual_if:
+        - socket: 0
+          threads: [2]
+
+./_t-rex-64 -c /etc/trex_cfg.yaml -i -c 1
+
+./trex-console
+start -f bench.py  -m 1
+
+____________________________________________________________________
+NAT
+
+#########################
+in/out
+inside                                                                                        outside 
+10.10.10.1 --------------------------------- 10.10.10.2  NAT  10.10.20.2 -------------------- 10.10.20.1
+                                             pool: 10.10.30.1-10.10.30.20
+
+ifconfig ens8 10.10.10.1/24 up                                                                ifconfig ens9 10.10.20.1/24 up
+ip r a dev ens8 10.10.20.0/24 via 10.10.10.2                                                  ip r a dev ens9 10.10.30.0/24 via 10.10.20.2
+
+# VPP
+set interface ip address GigabitEthernet0/8/0 10.10.10.2/24   
+set interface ip address GigabitEthernet0/9/0 10.10.20.2/24
+
+nat44 plugin enable
+set interface nat44 in GigabitEthernet0/8/0
+set interface nat44 out GigabitEthernet0/9/0
+nat44 add address 10.10.30.1 - 10.10.30.5
+
+ping 10.10.20.1
+
+########################
+on stick
+tester                                          NAT                                  
+10.10.10.1 --------------------------------- 10.10.10.2
+                                             10.10.20.2
+                                             pool: 10.10.30.1-10.10.30.20
+
+vppctl "set interface ip address GigabitEthernet0/8/0 10.10.10.2/24"
+vppctl "set interface ip address GigabitEthernet0/8/0 10.10.20.2/24"
+vppctl "nat44 plugin enable"
+vppctl "set interface nat44 in GigabitEthernet0/8/0"
+vppctl "set interface nat44 out GigabitEthernet0/8/0"
+vppctl "nat44 add address 10.10.30.1 - 10.10.30.5"
+vppctl "ip route add  10.10.40.0/24 via 10.10.10.2 GigabitEthernet0/8/0"
+
+
+hping3 -I ens8 --udp 10.10.40.1
+
+
+
