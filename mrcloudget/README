@@ -1,0 +1,17 @@
+Utility for synchronization files from mail.ru cloud with local storage
+Works as automatization of browser via selenium (mail.ru cloud has no official API)
+
+Tested on:
+
+
+
+Install selenium package:
+pip3 install selenium
+
+You shoud mandatory specify destination folder to download files:
+./mrcloudget.py -D ./cloud
+
+To synchronize only some specific folder in cloud, please, specify --path option:
+./mrcloudget.py -D ./cloud --path book/python
+
+~/.mrcloudget/google-chrome - Browser cache
