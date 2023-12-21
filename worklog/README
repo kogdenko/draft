@@ -20,6 +20,18 @@ sudo 112344
 To enter 3s 
 ssh -p 11522 10.50.148.3 # from s4
 
+#NVS
+10.136.231.74
+10.136.231.75
+10.136.231.76
+10.136.231.77
+
+#SPB
+10.31.194.116
+10.31.194.117
+10.31.194.118
+10.31.194.119
+
 kubectl exec --stdin --tty  ipsec2-v6-spb -n naas -- /bin/bash # vpp
 kubectl exec --stdin --tty  ipsec1-v6-spb -n naas -- /bin/bash # charon
 
@@ -131,3 +143,8 @@ cd vpp-manager
 make vpp
 make build
 make image-local IMAGE_LOCAL_SUFFIX=kk:latest
+
+
+########################################################
+Александр Сизов - API
+

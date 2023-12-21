@@ -26,10 +26,12 @@ virt-df -h
 
 qemu-img resize /tmp/jammy-server-cloudimg-amd64.img +10G
 vm$ parted
-vm$ reizepart 1
+vm$ (parted) print free
+vm$ (parted) resizepart 1
 vm$ resize2fd /dev/sda1
 
-virt-install  --osinfo detect=on,require=off --name vru --memory 16384 --disk /var/lib/libvirt/images/vru.img --import
+
+virt-install --osinfo detect=on,require=off --name vru --memory 16384 --disk /var/lib/libvirt/images/vru.img --import
 
 apt install libguestfs-tools
 virt-customize -a /tmp/jammy-server-cloudimg-amd64.img --root-password password:qwerty
@@ -84,16 +86,22 @@ DPDK
 
 meson build
 cd build
+meson configure -Dbuildtype=debug
 ninja
+meson install
+
+# /etc/default/grub
+GRUB_CMDLINE_LINUX="rhgb quiet amd_iommu=off"
 
 # On:  0000:00:09.0 - Cannot write new PCI ID to driver vfio-pci
 driverctl set-override 0000:00:09.0 vfio-pci
 
 echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
-./usertools/dpdk-devbind.py -b vfio-pci 0000:04:00.0
+dpdk-devbind.py -b vfio-pci 0000:04:00.0
 modprobe vfio-pci
 
-./usertools/dpdk-devbind.py -b uio_pci_generic 0000:04:00.0
+dpdk-devbind.py -b uio_pci_generic 0000:04:00.0
+dpdk-devbind.py -b ixgbe 0000:08:00.1
 
 echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 mount -t hugetlbfs hugetlbfs /mnt/huge
@@ -107,6 +115,19 @@ show port stats 0
 
 set portlist 0,1
 start
+
+## mellanox
+#git clone https://github.com/linux-rdma/rdma-core.git
+#cd rdma-core
+#./build
+
+echo "options mlx4_core log_num_mgm_entry_size=-1" >> /etc/modprobe.d/mlx4.conf
+mmod mlx4_ib mlx4_en mlx4_core
+modprobe mlx4_ib
+
+git clone https://github.com/Mellanox/ofed-docker.git
+cd ofed-docker
+docker build -t ofed-driver --build-arg D_BASE_IMAGE=ubuntu:20.04 --build-arg D_OFED_VERSION=4.9-7.1.0.0 --build-arg D_OS=ubuntu20.04 --build-arg D_ARCH=x86_64 ubuntu/
 __________________________________________________________
 DOCKER
 
@@ -123,22 +144,31 @@ NSPID=$(docker inspect --format='{{ .State.Pid }}' $container)
 ip link set "$HOST_IFACE" netns "$NSPID"
 
 ## run vpp in docker
-docker run -it --privileged -v /sys/bus/pci/devices:/sys/bus/pci/devices -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v /dev:/dev -v /mnt/huge:/mnt/huge --name vpp2001 8d3ccc49202b /bin/bash
+docker run -it --privileged -v /sys/bus/pci/devices:/sys/bus/pci/devices -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v /dev:/dev -v /mnt/huge:/mnt/huge -v /run:/run  -h ldu --name ldu base.img /bin/bash
 
 ## run another shell
 docker exec -it 387feabb0f3c /bin/bash
 
 docker commit {container_id} {new_image_name}
 
+# Rename image
+docker image tag  be9d6140fd40 base.img:1
+
 docker rm [container_id]
-docker image rm 8ff3fa9a5335
+
+# Remove image
+docker image rm base.img
+docker rmi base.img
+
 
 docker ps -a
 docker container start fc3238e9c873
 docker attach fc3238e9c873
 docker import /home/kkogdenko/Documents/ubuntu2204_vpp2210_0.2.tar
 
-
+# Copy image
+docker save base.img > base.img.tar
+docker load < base.img.tar
 __________________________________________________________
 DPKG
 
@@ -175,6 +205,8 @@ show ip table
 # ip l s dev ix1a master vpp-vrf13
 set interface ip table TenGigabitEthernet8/0/0 13
 
+
+
 lcp create TenGigabitEthernet4/0/0 host-if eth2
 lcp create TenGigabitEthernet4/0/1 host-if eth3
 set interface state TenGigabitEthernet8/0/0 up
@@ -209,6 +241,7 @@ show trace
 
 vat2 --dump-apis
 
+detach from container: Ctr+p then Ctrl+q
 __________________________________________________________
 Cisco Trex
 
@@ -272,10 +305,22 @@ vppctl "nat44 plugin enable"
 vppctl "set interface nat44 in GigabitEthernet0/8/0"
 vppctl "set interface nat44 out GigabitEthernet0/8/0"
 vppctl "nat44 add address 10.10.30.1 - 10.10.30.5"
-vppctl "ip route add  10.10.40.0/24 via 10.10.10.2 GigabitEthernet0/8/0"
+vppctl "ip route add  10.10.40.0/24 via 10.10.10.1 GigabitEthernet0/8/0"
 
 
 hping3 -I ens8 --udp 10.10.40.1
 
+# On stand
+set interface ip address TenGigabitEthernet4/0/0 10.10.10.2/24
+set interface ip address TenGigabitEthernet4/0/0 10.10.20.2/24
+nat44 plugin enable
+set interface nat44 in TenGigabitEthernet4/0/0
+set interface nat44 out TenGigabitEthernet4/0/0
+nat44 add address 10.10.30.1 - 10.10.30.5
+ip route add  10.10.40.0/24 via 10.10.10.2 TenGigabitEthernet4/0/0
+
+# dpdk-ping between ldu and rdu
+dpdk-testpmd --proc-type=primary --file-prefix=pmd1 --vdev=net_memif,role=server,socket-abstract=no,socket=/run/memif.sock -- -i
+dpdk-testpmd --proc-type=primary --file-prefix=pmd2 --vdev=net_memif,socket-abstract=no,socket=/run/memif.sock -- -i
 
 
