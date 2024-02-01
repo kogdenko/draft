@@ -1,0 +1,81 @@
+lrf                                        rru
+Left Ryzen Fedora                          Right Ryzen Ubuntu
+kkogdenko                                  
+10.216.1.10                                
+                                           rrf
+                                           Right Ryzen Fedora
+                                           k.kogdenko
+                                           10.216.1.20
+
+mx0a x8                                    ix1a x8
+0000:08:00.0-------                 -------0000:08:00.0
+                   |               |          
+                   |               |
+                   |               |
+mx0b x8            |               |       ix1b x8
+0000:08:00.0-------                 -------0000:08:00.1
+                               
+
+
+ix2a x8                                    ix0a x4
+0000:09:00.0-------------------------------0000:04:00.0
+
+
+ix2b x8                                    ix0b x4
+0000:09:00.1-------------------------------0000:04:00.1
+
+
+Motherboard
+X570 AORUS PRO                             B550 AORUS PRO AC
+PCIe 4.0                                   PCIe 4.0
+PCIe lanes: 16x, 8x, 4x
+
+____________________________________________________________________
+
+fx-8350
+kkogdenko
+10.216.1.7
+
+ix3a------
+          |
+          |
+ix3b------
+
+
+Motherboard
+ASUS M5A97 LE R2.0
+PCIe 2.0
+
+_____________________________________________________________________
+mx
+Mellanox Technologies MT27520 Family [ConnectX-3 Pro]
+PCIe 3.0 lanes x8
+QSFP+
+
+ix
+Intel Corporation 82599ES
+PCIe 2.0 lanes x8
+SFP+
+
+ix0a  00:1b:21:95:69:64
+ix0b  00:1b:21:95:69:65
+
+ix1a  00:1b:21:a6:e5:3c
+ix1b  00:1b:21:a6:e5:3d
+
+ix2a  00:1b:21:65:a0:10
+ix2b  00:1b:21:65:a0:11
+
+ix3a  90:e2:ba:b3:bb:d4
+ix3b  90:e2:ba:b3:bb:d5
+
+______________________________________________________________________
+# PCI address
+ethtool -i ix2a
+
+# Motherboard model
+dmidecode -t 2
+
+# PCI lanes
+lspci -vv
+

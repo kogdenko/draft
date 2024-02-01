@@ -1,17 +1,10 @@
-# room
-https://mts-ru.zoom.us/j/8516390817
+Вторнки 14.00
+https://mts.mts-link.ru/MTC/network-dev-weekly
 
-# Tuesday 12.00
-https://mts-ru.zoom.us/j/95160438250?from=addon 
 
-https://telemost.yandex.ru/j/24531418834518
+https://mts.webinar.ru/MTC/yakov
+https://mts.webinar.ru/MTC/kakogde1
 
-https://events.webinar.ru/MTC/806369918
-
-https://my.mts-link.ru/MTC/357533433
-
-30 Nov 12.30
-https://my.mts-link.ru/MTC/2112023899/session/662535767
 
 ssh kakogde1@31.131.94.11 -p 11522 # s3
 ssh kakogde1@31.131.94.12 -p 11522 # s4
@@ -40,6 +33,11 @@ ssh -p 22 kakogde1@185.46.9.12 #
 
 https://ipa.dev.cloud.mts.ru/
 Rfhfgep@
+
+# NAT perf test
+ubuntu/ubuntu
+10.77.233.5
+10.77.233.6
 
 ###################################################################
 для доступа к репозиторию:
