@@ -203,6 +203,12 @@ statseg {
 buffers {
 	buffers-per-numa 128000
 }
+memory {
+	main-heap-size 10G
+}
+plugins {
+	add-path /root/naas/bin
+}
 
 make install-dep
 make install-ext-dep
@@ -214,8 +220,6 @@ ninja
 ninja install
 
 # startup.conf
-plugins {
-	add-path /root/naas/bin
 
 show hardware-interface # MAC addresses
 show interface
@@ -261,8 +265,6 @@ show trace
 sr policy add bsid 2a02:5501:0:20c4:1::100 next 2a02:5501:0:20c4:1:: encap
 sr steer l3 1.5.112.1/32 via bsid 2a02:5501:0:20c4:1::100
 
-
-
 vat2 --dump-apis
 
 # Submiting patch
@@ -270,10 +272,13 @@ git clone ssh://kogdenko@gerrit.fd.io:29418/vpp.git
 ./extras/scripts/checkstyle.sh --fix
 make test
 git commit -s
+git review
 
 # Retrive
 git pull
 git review -d 39518
+git commit -s --amend --no-edit
+git push gerrit HEAD:refs/for/master%topic=39518
 __________________________________________________________
 openvpn3
 
