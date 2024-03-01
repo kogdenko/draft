@@ -6,6 +6,9 @@ https://mts.webinar.ru/MTC/yakov
 https://mts.webinar.ru/MTC/kakogde1
 https://mts.mts-link.ru/MTC/network-dev-weekly
 
+# Bridge
+https://events.webinar.ru/MTC/806369918
+
 ssh kakogde1@31.131.94.11 -p 11522 # s3
 ssh kakogde1@31.131.94.12 -p 11522 # s4
 sudo 112344

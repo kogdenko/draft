@@ -17,10 +17,20 @@ Start Week from Monaday
 /etc/locale.conf
 LC_TIME="en_GB.UTF-8"
 _________________________________________________________
+Create symbolic link
+ln -s /root/nat-det/src/plugins/nat/nat44-ed /root/vpp-40280/src/plugins/nat
+ls -l /root/vpp-40280/src/plugins/nat
+nat44-ed -> /root/nat-det/src/plugins/nat/nat44-ed
+
+_________________________________________________________
 NETMAP
 ./configure --no-ext-drivers --apps=pkt-gen --drivers=ixgbe,veth.c
 make
 make install # modules and headers
+_________________________________________________________
+GIT
+
+git apply x.patch
 _________________________________________________________
 VIRT-MANAGER
 
@@ -210,6 +220,10 @@ plugins {
 	add-path /root/naas/bin
 }
 
+dpdk {
+	rss { ipv6-ex }
+}
+
 make install-dep
 make install-ext-dep
 make build
@@ -380,3 +394,5 @@ nat44 add address 1.6.112.10 - 1.6.112.20
 ip route add 1.5.0.0/16 table 112 via 1.6.10.1
 set interface nat44 in ens1f0
 set interface nat44 out ens1f0
+
+
