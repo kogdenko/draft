@@ -1,0 +1,446 @@
+__________________________________________________________
+IP adresses doewnt appear on interfaces
+systemctl status systemd-networkd
+# failed
+# Error: 13 (Permission)
+
+# /usr/lib/systemd/system/systemd-networkd.socket
+[Unit]
++After=dbus.service
+_________________________________________________________
+# sudo without password 
+
+__________________________________________________________
+# ubuntu 22.04 change language key bindings
+gsettings set org.gnome.desktop.wm.keybindings switch-input-source "['<Control>Shift_L']"
+gsettings set org.gnome.desktop.wm.keybindings switch-input-source "['<Shift>Control_L']"
+__________________________________________________________
+Make bootable USB
+dd if=/home/k.kogdenko/Downloads/ubuntu-22.04.1-desktop-amd64.iso of=/dev/sdd bs=1M status=progress
+__________________________________________________________
+Start Week from Monaday
+/etc/locale.conf
+LC_TIME="en_GB.UTF-8"
+_________________________________________________________
+Create symbolic link
+ln -s /root/nat-det/src/plugins/nat/nat44-ed /root/vpp-40280/src/plugins/nat
+ls -l /root/vpp-40280/src/plugins/nat
+nat44-ed -> /root/nat-det/src/plugins/nat/nat44-ed
+
+_________________________________________________________
+NETMAP
+./configure --no-ext-drivers --apps=pkt-gen --drivers=ixgbe,veth.c
+make
+make install # modules and headers
+_________________________________________________________
+GIT
+
+git apply x.patch
+
+
+_________________________________________________________
+VIRT-MANAGER
+
+virt-df -h 
+
+qemu-img resize /tmp/jammy-server-cloudimg-amd64.img +10G
+vm$ parted
+vm$ (parted) print free
+vm$ (parted) resizepart 1
+vm$ resize2fd /dev/sda1
+
+virt-install --osinfo ubuntu20.04 --name vumx --vcpus 4 --memory 16384 --disk /var/lib/libvirt/images/vumx.img --import
+
+apt install libguestfs-tools
+virt-customize -a /var/lib/libvirt/images/vumx.img --root-password password:qwerty
+
+virsh list --all
+virsh shutdown mts-directconnect-lu
+
+#delete vm
+virsh destroy vumx
+virsh undefine --remove-all-storage --wipe-storage vumx
+
+virsh domrename mts-directconnect-lu vlu
+
+virsh snapshot-list vlu
+
+export EDITOR=vim
+
+virt-clone --original vlu --name vru --auto-clone
+
+virsh domblklist vlu
+virsh dominfo vlu
+virsh domiflist vlu # List network interfaces
+virsh vcpuinfo vlu
+virsh vcpucount vlu
+
+virsh setvcpus vlu 2 --maximum --config
+virsh setvcpus vlu 2 --config
+virsh vcpupin vumx 0 8
+
+virsh setmaxmem --config vlu 8192M
+virsh setmem --config vlu 8192M
+
+virsh console vlu
+
+virsh attach-interface --domain vlu  --type network --model virtio --source sw0 --persistent
+virsh detach-interface vlu network --mac 52:54:00:93:be:7a --persistent
+
+virsh net-list --all
+virsh net-destroy test
+virsh net-dumpxml test
+virsh net-define ./sw0.xml
+virsh net-autostart sw0
+virsh net-start sw0
+
+virsh net-edit default
+virsh net-destroy default
+virsh net-start default
+brctl addif virbr0 vnet52 # for each vm
+
+virsh shutdown vlu
+virt-clone --original vlu --name vucp --auto-clone
+
+virsh dumpxml vlu > /tmp/vlu.xml
+virsh define /tmp/vlu.xml
+____________________________________________________
+DPDK
+
+meson build
+cd build
+meson configure -Dbuildtype=debug
+ninja
+meson install
+
+# /etc/default/grub
+GRUB_CMDLINE_LINUX="rhgb quiet amd_iommu=off"
+
+# On:  0000:00:09.0 - Cannot write new PCI ID to driver vfio-pci
+driverctl set-override 0000:00:09.0 vfio-pci
+
+echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+dpdk-devbind.py -b vfio-pci 0000:04:00.0
+modprobe vfio-pci
+
+dpdk-devbind.py -b uio_pci_generic 0000:04:00.0
+dpdk-devbind.py -b ixgbe 0000:08:00.1
+
+echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+mount -t hugetlbfs hugetlbfs /mnt/huge
+
+dpdk-testpmd -b 0000:08:00.1  -l 8-9 --proc-type=primary --file-prefix=pmd0 --vdev=net_memif0,role=client,socket=/run/vpp/memif.sock,secret=123,id=0,socket-abstract=no -- -i
+
+dpdk-testpmd -b 0000:08:00.0  -l 10,11 --proc-type=primary --file-prefix=pmd1 --vdev=net_memif0,role=client,socket=/run/vpp/memif.sock,secret=123,id=1,socket-abstract=no -- -i
+
+show port info all
+
+show port info 2
+show port stats 0
+
+set portlist 0,1
+start
+
+set fwd icmpecho
+
+dpdk-dumpcap -w /tmp/1.pcap
+
+## mellanox
+#git clone https://github.com/linux-rdma/rdma-core.git
+#cd rdma-core
+#./build
+
+echo "options mlx4_core log_num_mgm_entry_size=-1" >> /etc/modprobe.d/mlx4.conf
+mmod mlx4_ib mlx4_en mlx4_core
+modprobe mlx4_ib
+
+git clone https://github.com/Mellanox/ofed-docker.git
+cd ofed-docker
+docker build -t ofed-driver --build-arg D_BASE_IMAGE=ubuntu:20.04 --build-arg D_OFED_VERSION=4.9-7.1.0.0 --build-arg D_OS=ubuntu20.04 --build-arg D_ARCH=x86_64 ubuntu/
+__________________________________________________________
+DOCKER
+
+docker pull ubuntu:22.04
+
+docker images
+
+# BUGFIX: Temporary failure resolving 'archive.ubuntu.com'
+ip link delete docker0
+systemctl restart docker
+
+## give interface to docker
+NSPID=$(docker inspect --format='{{ .State.Pid }}' $container)
+ip link set "$HOST_IFACE" netns "$NSPID"
+
+## run vpp in docker
+docker run -it --privileged -v /sys/bus/pci/devices:/sys/bus/pci/devices -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v /dev:/dev -v /mnt/huge:/mnt/huge -v /run:/run -v /home/ADMSK/kakogde1/:/root -h ldu --name ldu ubuntu:22.04 /bin/bash
+
+## run another shell
+docker exec -it 387feabb0f3c /bin/bash
+
+docker commit {container_id} {new_image_name}
+
+# Rename image
+docker image tag  be9d6140fd40 base.img:1
+
+docker rm [container_id]
+
+# Remove image
+docker image rm base.img
+docker rmi base.img
+
+
+docker ps -a
+docker container start fc3238e9c873
+docker attach fc3238e9c873
+docker import /home/kkogdenko/Documents/ubuntu2204_vpp2210_0.2.tar
+
+# Copy image
+docker save base.img > base.img.tar
+docker load < base.img.tar
+
+detach from container: Ctr+p then Ctrl+q
+
+
+# base.img from ubuntu.22.04
+# Install packages
+unminimize
+apt install make sudo gdb apt-file iputils-ping tmux vim python-is-python3 meson python3-pyelftools
+apt-file update
+
+# Hugepages
+echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+mount -t hugetlbfs hugetlbfs /mnt/huge
+
+# Configure dev environment
+mkdir -p ~/.vim/plugin
+cp ~/Projects/kogdenko/draft/config/minibufexpl.vim ~/.vim/plugin/
+cp ~/Projects/kogdenko/draft/config/vimrc ~/.vimrc
+
+# Build dpdk: https://github.com/DPDK/dpdk.git
+cp dpdk
+meson build
+
+cd -
+
+# Build dpdk-ping: 
+
+# Build vpp: git@git.dev.cloud.mts.ru:mws/network/FDio/vpp.git
+cd vpp
+make install-dep
+make install-ext-dep
+make build
+make build-release
+cp ./build-root/build-vpp-native/vpp/bin/vppctl /usr/local/bin
+
+__________________________________________________________
+DPKG
+
+dpkg -i 1.deb
+dpkg --contents 1.deb
+
+ar -x 1.deb
+unzstd data.tar.zst
+tar -xvf data.tar
+
+__________________________________________________________
+VPP
+
+# config
+statseg {
+	size 500m
+}
+buffers {
+	buffers-per-numa 128000
+}
+memory {
+	main-heap-size 10G
+}
+plugins {
+	add-path /root/naas/bin
+}
+
+dpdk {
+	rss { ipv6-ex }
+}
+
+make install-dep
+make install-ext-dep
+make build
+
+./configure -w
+./configure -i /usr/local --native-only
+ninja
+ninja install
+
+# startup.conf
+
+show hardware-interface # MAC addresses
+show interface
+show interface address
+show ip fib table 0
+# ip link add vpp-vrf13 type vrf table 13
+ip table add 13
+show ip table
+# ip l s dev ix1a master vpp-vrf13
+set interface ip table TenGigabitEthernet8/0/0 13
+
+lcp create TenGigabitEthernet4/0/0 host-if eth2
+lcp create TenGigabitEthernet4/0/1 host-if eth3
+set interface state TenGigabitEthernet8/0/0 up
+set interface ip address TenGigabitEthernet8/0/0 10.10.10.1/24
+set interface ip address del TenGigabitEthernet8/0/0 10.10.10.1/24
+
+ip route add table 10 10.10.20.0/24 via 10.10.10.2 TenGigabitEthernet8/0/0
+
+create interface memif master
+
+show logging
+show logging configuration
+show features verbose
+set logging class linux-cp rate-limit 1000 level warn syslog-level notice
+
+show crypto handlers
+
+set interface state local0 up
+set interface rx-mode local0 interrupt
+show interface rx-placement
+
+show ip neighbor
+set ip neighbor static TenGigabitEthernet8/0/1 192.168.31.13 90:e2:ba:b3:bb:d5
+
+show ipsec sa
+ipsec sa del 1
+
+clear trace
+trace add dpdk-input 10
+show trace
+
+show vlib graph
+
+sr policy add bsid 2a02:5501:0:20c4:1::100 next 2a02:5501:0:20c4:1:: encap
+sr steer l3 1.5.112.1/32 via bsid 2a02:5501:0:20c4:1::100
+
+# Host interface
+$ ip link add vetha type veth peer vethb
+$ ifconfig vethb 10.50.1.1/24 up
+# create host-interface name vetha
+# set interface state host-vetha up
+# set interface ip address host-vetha 10.50.1.2/24
+# ping 10.50.1.1
+
+# ACL 
+set acl-plugin acl permit src 10.10.10.0/24 dst 0.0.0.0/0
+show acl-plugin acl
+delete acl-plugin acl index 0
+
+# Run test
+make test-help
+make TEST=test_nat44_ed test
+make TEST=test_nat44_ed test-debug
+make TEST=test_nat44_ed.TestNAT44EDMW.test_dynamic test-debug
+
+# ELOGS
+event-logger clear
+show event-logger
+
+show errors
+
+vat2 --dump-apis
+
+vpp_get_stats dump
+
+# Submiting patch
+git clone ssh://kogdenko@gerrit.fd.io:29418/vpp.git
+./extras/scripts/checkstyle.sh --fix
+make test
+git commit -s
+git review
+
+# Retrive
+git pull
+git review -d 39518
+git commit -s --amend --no-edit
+git push gerrit HEAD:refs/for/master%topic=39518
+
+# Change codding format
+cp /kakogde1/Projects/open_source/linux-6.7.1/.clang-format .
+clang-format -i ./src/plugins/nat/cgnat/lib/nat_syslog.c
+
+__________________________________________________________
+openvpn3
+
+openvpn3 configs-list
+openvpn3 config-import --config /tmp/test.ovpn --name test --persistent
+openvpn3 config-remove --config test
+
+openvpn3 session-start --config test
+
+openvpn3 sessions-list
+openvpn3 session-manage -D --session /net/openvpn/v3/sessions/76c41ba0s4e11s42absae89s5172e9284355
+
+__________________________________________________________
+openvpn2
+
+apt install openresolv
+
+# Add to config
+up /etc/openvpn/update-resolv-conf
+down /etc/openvpn/update-resolv-conf
+
+openvpn --config /home/ADMSK/kakogde1/Documents/CloudMTS-CPD-229.ovpn --auth-user-pass /home/ADMSK/kakogde1/Documents/user-pass --script-security 2
+
+__________________________________________________________
+kubectl
+
+kubectl --kubeconfig /home/ADMSK/kakogde1/Documents/config get pods --all-namespaces
+kubectl config get-contexts --kubeconfig ~/Documents/config
+kubectl --kubeconfig ~/Documents/config --context msk-kcd-dev-iaas-net get nodes
+
+
+kubectl --context msk-kcd-dev-iaas-net --namespace dev-network-services get pods -o wide
+kubectl --context msk-kcd-dev-iaas-net --namespace dev-network-services exec --stdin --tty network-vpp-dev-nat-btbhb -- /bin/bash
+
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+kubectl node-shell msk-kcd-dev-iaas-net-g6jp2-gwddx   --context msk-kcd-dev-iaas-net --namespace dev-network-services
+
+kubectl describe nodes
+
+kubectl get -n dev-network-services ds/network-vpp-dev-vpc -oyaml
+
+keubectl auto completion
+
+Daemon set
+__________________________________________________________
+Cisco Trex
+
+# cat /etc/trex_cfg.yaml
+
+- version: 2
+#  interfaces: ['00:08.0', '00:09.0']
+  interfaces: ['00:08.0', 'dummy']
+
+  port_info:
+      - dest_mac: 52:54:00:e0:50:95
+        src_mac:  52:54:00:f6:53:26
+      - dest_mac: 52:54:00:fb:b4:26
+        src_mac:  52:54:00:a9:82:25
+
+  platform:
+      master_thread_id: 0
+      latency_thread_id: 1
+      dual_if:
+        - socket: 0
+          threads: [2]
+
+./_t-rex-64 -c /etc/trex_cfg.yaml -i -c 1
+
+./trex-console
+start -f bench.py  -m 1
+
+__________________________________________________________
+scons
+
+
+
+

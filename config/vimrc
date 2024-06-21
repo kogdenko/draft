@@ -1,0 +1,14 @@
+set number
+set hlsearch
+set autowriteall
+
+set nobackup
+set nowritebackup
+set noswapfile
+
+set tabstop=8
+filetype plugin indent off
+
+autocmd Filetype python setlocal expandtab tabstop=4 shiftwidth=4
+
+syntax on

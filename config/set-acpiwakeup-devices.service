@@ -1,0 +1,10 @@
+# /etc/systemd/system/set-acpiwakeup-devices.service
+[Unit]
+Description=Disable devices as wakeup
+
+[Service]
+ExecStart=/usr/bin/set-acpiwakeup-devices.sh
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,45 @@
+GBps - Gigabyte per second
+Gbps - Gigabit per second
+GTps - Gigatransaction per second
+
+PCIE 2.0:  5 GTps; ~ 0.5 GBps
+PCIE 3.0:  8 GTps; ~ 1   GBps
+PCIE 4.0: 16 GTps; ~ 2   GBps
+
+ix[0-4][a,b] - Intel X520-DA2 82599ES; PCIE 2.0; x8 Lane;
+mx0[a,b] - Mellanox Technologies MT27520 Family [ConnectX-3 Pro];PCIE 3.0; x8 Lane
+
+fx8350:	AMD FX 8350
+	M5A97 LE R2.0 (PCIE 2.0; 16-4)
+	Fedora 37 / 6.1.11
+	netmap: Thu Feb 2 12:19:35 2023 +0100 / d6c9227aa310c95cab6160b2fb24b068fd8d36f5
+	video
+	mx0
+
+lrf:	AMD Ryzen 5950x
+	X570 AORUS PRO (PCIE 4.0; 16-8-4)
+	Fedora 37 / 6.1.10
+	netmap: Thu Feb 2 12:19:35 2023 +0100 / d6c9227aa310c95cab6160b2fb24b068fd8d36f5
+	ix3
+	ix2
+	video
+
+rru:	AMD Ryzen 5950x
+	B550 AORUS PRO AC (PCIE 3.0; 16-4-2)
+	Ubuntu 20.04 / 6.1.10
+	netmap: Thu Feb 2 12:19:35 2023 +0100 / d6c9227aa310c95cab6160b2fb24b068fd8d36f5
+	ix1
+	ix0
+	video
+	
+
+pkt-gen:
+ethtool -L $NIC combined 1
+ethtool -G $NIC rx 2048 tx 2048
+ethtool -A $NIC rx off tx off
+
+rru:	ix1 loopback:				14.2 Mpps / 7.2 Gbps
+	ix0 loopback:				 8.8 Mpps / 5   Gbps
+
+lrf:	ix3 loopback				14.6 Mpps / 6.9 Gbps 
+	ix2 loopback				14.6 Mpps / 6.9 Gbps

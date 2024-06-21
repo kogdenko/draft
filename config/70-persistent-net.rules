@@ -1,0 +1,13 @@
+# /etc/udev/rules.d/70-persistent-net.rules
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:95:69:64", NAME="ix0a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:95:69:65", NAME="ix0b"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3c", NAME="ix1a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:a6:e5:3d", NAME="ix1b"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:65:a0:10", NAME="ix2a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="00:1b:21:65:a0:11", NAME="ix2b"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d4", NAME="ix3a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="90:e2:ba:b3:bb:d5", NAME="ix3b"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="e4:1d:2d:12:78:70", NAME="mx0a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="e4:1d:2d:12:78:71", NAME="mx0b"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="3c:fd:fe:9e:c6:c4", NAME="i40_0a"
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="3c:fd:fe:9e:c6:c6", NAME="i40_0b"

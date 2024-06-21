@@ -1,0 +1,16 @@
+cflags = [
+    '-g',
+    '-O2',
+    '-Wall',
+]
+
+ldflags = [
+    '-lpcap',
+]
+
+env = Environment(CC = 'gcc',
+    CCFLAGS = ' '.join(cflags),
+    LINKFLAGS = ' '.join(ldflags),
+)
+
+env.Program('pcap-l2fwd', 'main.c')

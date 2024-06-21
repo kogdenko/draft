@@ -1,0 +1,29 @@
+Test program for memory access benchmark.
+
+Idea borrowed from paper:
+"What every programmer should know about memory, Chapter 2"
+by Ulrich Drepper.
+
+HOWTO:
+- Compile mem-bench:
+  $ make
+
+- Permorm benchmarks:
+  For help:
+  $ ./mem-bench -h
+
+  Example:
+  $ ./mem-bench -n 25 -N 27 -R
+  $ 25 261
+  $ 26 286
+  $ 27 298
+  The First column of output is exponent of working set size,
+  real working sizes wold be 2^25(~34Mb), 2^26(~67Mb) and 2^27(134Mb)
+  The seconfd column is number of cycles/operation.
+
+- Visualize benchmark results with mem-bench-plot
+  Required gnuplot.
+
+  Example:
+  $ ./mem-bench-plot -o bench.jpg 1.dat 2.dat
+  *.dat files obtained from redirecting ./mem-bench output to file.

@@ -1,0 +1,427 @@
+import os
+import shutil
+import platform
+import subprocess
+
+COMPILER='gcc'
+libnaas = None
+libnaas_sswan_proxy = None
+
+LIBNL3 = 0
+
+def die(s):
+	print(s)
+	Exit(1)
+
+
+def bytes_to_str(b):
+	return b.decode('utf-8').strip()
+
+
+def system(cmd, failure_tollerance=False):
+	proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	try:
+		out, err = proc.communicate()
+	except:
+		proc.kill();
+		die("Command '%s' failed, exception: '%s'" % (cmd, sys.exc_info()[0]))
+
+	out = bytes_to_str(out)
+	err = bytes_to_str(err)
+	rc = proc.returncode
+
+#	print("$ %s # $? = %d\n%s\n%s" % (cmd, rc, out, err))
+
+	if rc != 0 and not failure_tollerance:
+		die("Command '%s' failed, return code: %d" % (cmd, rc))
+
+	return rc, out, err
+
+
+def get_git_version():
+	if True:
+		cmd = "git describe --tags --always"
+		rc, out, _ = system(cmd)
+		return out.strip()
+	else:
+		cmd = "git log -1 --format=%H"
+		commit = system(cmd)[1].strip()
+		assert (len(commit) == 40)
+		return commit
+
+
+def flags_to_string(flags):
+	return ' ' + ' '.join(flags)
+
+
+def install(env, item, path):
+    env.Install(path, item)
+    env.Alias('install', path)
+
+
+def install_lib(env, lib):
+	lib_path = '/usr/local/lib'
+	install(env, lib, lib_path)
+
+
+def install_prog(env, prog):
+	install(env, prog, '/usr/local/bin')
+
+
+def set_HAVE_SEG6_LOCAL_VRFTABLE(conf):
+	seg6_local_vrftable_test_c = """
+#include <stdio.h>
+#include <linux/seg6_local.h>
+
+int
+main()
+{
+	printf("%d", SEG6_LOCAL_VRFTABLE);
+	return 0;
+}
+"""
+	result = conf.TryLink(seg6_local_vrftable_test_c, '.c')
+	if result:
+		cflags.append('-DHAVE_SEG6_LOCAL_VRFTABLE')
+	print("Checking for SEG6_LOCAL_VRFTABLE... ", "yes" if result else "no")
+
+
+def build_libnaas_app(env, name, internal_libs, external_libs):
+	env = env.Clone()
+
+	libs = []
+	for lib in internal_libs:
+		libs.extend([ ":" + lib ])
+
+	libpath = [ ]
+	cflags = []
+	if LIBNL3 in external_libs:
+		libpath.extend([
+			'-L/opt/libnl-227.27.0/lib',
+		])
+		libs.extend([
+			':libnl-3.so.200.27.0',
+			':libnl-route-3.so.200.27.0',
+			':libnl-cli-3.so.200.27.0',
+		])
+
+		cflags.append('-I/opt/libnl-227.27.0/include/libnl3/')
+
+	env.Append(CFLAGS = flags_to_string(cflags))
+	env.Append(LIBPATH = libpath)
+	for lib in libs:
+		env.Append(LIBS = [lib])
+	prog = env.Program("bin/%s" % name, "%s/main.c" % name)
+	install_prog(env, prog)
+	return prog
+
+
+def build_libnaas_test(env, name):
+	global libnaas_name
+	global libnaas_sswan_proxy
+	global libnaas_sswan_proxy_name
+
+	cflags = []
+	libs = [
+		":" + libnaas_sswan_proxy_name,
+		":" + libnaas_name,
+	]
+
+	env = env.Clone()
+	
+	env.Append(CFLAGS = flags_to_string(cflags))
+	for lib in libs:
+		env.Append(LIBS = [lib])
+	prog = env.Program("bin/%s" % name, "tests/%s.c" % name)
+	Requires(prog, libnaas_sswan_proxy)
+	return prog
+
+
+def build_libnaas(env):
+	global libnaas_name
+
+	srcs = [
+                'libnaas/inet.c',
+                'libnaas/list.c',
+                'libnaas/log.c',
+                'libnaas/strbuf.c',
+		'libnaas/utils.c',
+                'libnaas/vppapi.c',
+	]
+
+	libs = [
+		'vppinfra',
+		'vlibmemoryclient',
+		'vppapiclient',
+		'vlibapi',
+	]
+
+	env = env.Clone()
+	for lib in libs:
+		env.Append(LIBS = [lib])
+
+	lib = env.SharedLibrary('bin/' + libnaas_name, srcs)
+	install_lib(env, lib)
+	return lib
+
+
+def build_libnaas_sswan_proxy(env):
+	global libnaas_sswan_proxy_name
+	global libnaas_name
+	global libnaas
+
+	srcs = [
+		'libnaas/nats_helper.c',
+		'libnaas/pcap_helper.c',
+		'libnaas/vppapi_rpc.c',
+		'libnaas/ike_tunnel.c',
+	]
+
+	libs = [
+		":" + libnaas_name,
+		'pcap',
+		'nats',
+	]
+
+#	ldflags = [
+#		'-lnats',
+#		'-lpcap',
+#	]
+
+	env = env.Clone()
+#	env.Append(LINKFLAGS = flags_to_string(ldflags))
+	for lib in libs:
+		env.Append(LIBS = [lib])
+
+	lib = env.SharedLibrary('bin/' + libnaas_sswan_proxy_name, srcs)
+	Requires(lib, libnaas)
+	install_lib(env, lib)
+	return lib
+
+
+def get_sswan():
+	sswan = GetOption('sswan')
+	if sswan == None:
+		die("Option '--sswan' not specified")
+	return sswan
+
+
+def vpp_sswan(env):
+	global libnaas_sswan_proxy_name
+	global libnaas_sswan_proxy
+
+	sswan = get_sswan()
+
+	cflags = [
+		'-include ' + sswan + '/config.h',
+		'-I' + sswan + '/src/libstrongswan',
+		'-I' + sswan + '/src/libcharon',
+	]
+
+	srcs = [
+		'vpp_sswan/kernel_vpp_plugin.c',
+	]
+
+	libs = [
+		'vppinfra',
+		'vlibapi',
+		'svm',
+		'vppapiclient',
+		":" + libnaas_sswan_proxy_name,
+	]
+
+	env = env.Clone()
+	env.Append(CFLAGS = flags_to_string(cflags))
+	for lib in libs:
+		env.Append(LIBS = [lib])
+	lib = env.SharedLibrary('bin/libstrongswan-kernel-vpp.so', srcs)
+	Requires(lib, libnaas_sswan_proxy)
+	install(env, lib, "/usr/lib/ipsec/plugins/")
+	return lib
+
+
+def configurepy(target, source, env):
+	global git_version
+
+	f = open(str(target[0]), 'w')
+	s = ""
+	s += "NAAS_BUILD = '%s'\n" % git_version
+	f.write(s)
+	f.close()
+
+
+def build_deb(env, DEBFILES, name):
+	global git_version
+
+	DEBNAME = "naas-%s" % name
+	DEBDIR = "deb_%s" % DEBNAME
+
+	DEBVERSION = git_version
+	DEBMAINT = "Konstantin Kogdenko <k.kogdenko@gmail.com>"
+	DEBARCH = "amd64"
+	DEBDEPENDS = ""
+	DEBDESC = "MTS Naas %s Package" % name
+
+	debpkg = '#%s_%s_%s.deb' % (DEBNAME, git_version, DEBARCH)
+
+	env.Alias("deb", debpkg)
+
+	DEBCONTROLFILE = os.path.join(DEBDIR, "DEBIAN/control")
+
+	try:
+		shutil.rmtree(DEBDIR)
+	except:
+		pass
+
+	for f in DEBFILES:
+		if name in f[2]:
+			dest = os.path.join(DEBDIR, f[0])
+			env.Depends(debpkg, dest)
+			env.Command(dest, f[1], Copy('$TARGET','$SOURCE'))
+			env.Depends(DEBCONTROLFILE, dest)
+
+	CONTROL_TEMPLATE = """
+Package: %s
+Priority: extra
+Section: misc
+Installed-Size: %s
+Maintainer: %s
+Architecture: %s
+Version: %s
+Depends: %s
+Description: %s
+
+"""
+
+	env.Depends(debpkg, DEBCONTROLFILE)
+	env.Depends(DEBCONTROLFILE, env.Value(git_version))
+
+	def make_control(target=None, source=None, env=None):
+		installed_size = 0
+		for i in DEBFILES:
+			if name in i[2]:
+				installed_size += os.stat(str(env.File(i[1])))[6]
+		control_info = CONTROL_TEMPLATE % (
+			DEBNAME, installed_size, DEBMAINT, DEBARCH,
+			git_version, DEBDEPENDS, DEBDESC)
+		f = open(str(target[0]), 'w')
+		f.write(control_info)
+		f.close()
+
+	env.Command(DEBCONTROLFILE, None, make_control)
+
+	env.Command(debpkg, DEBCONTROLFILE,
+        	    "fakeroot dpkg-deb -b %s %s" % ("%s" % DEBDIR, "$TARGET"))
+
+	return debpkg
+
+
+def build_debs(env):
+	global libnaas_name
+
+	system("pyinstaller -y -F vpp_sswan/naas-updown-server.py naaspy/config.py")
+	system("pyinstaller -y -F naas-lk/naas-lkd.py naaspy/swanctl.py")
+
+	pod = "pod"
+	frr = "frr"
+	lk = "lk"
+
+	libnl_path = "opt/libnl-227.27.0/lib/"
+
+	libnl = libnl_path + "libnl-3.so.200.27.0"
+	libnl_symlink = libnl_path + "libnl-3.so.200"
+
+	libnl_route = libnl_path + "libnl-route-3.so.200.27.0"
+	libnl_route_symlink = libnl_path + "libnl-route-3.so.200"
+
+	libnl_cli = libnl_path + "libnl-cli-3.so.200.27.0"
+	libnl_cli_symlink = libnl_path + "libnl-cli-3.so.200"
+
+	libnl_nf = libnl_path + "libnl-nf-3.so.200.27.0"
+	libnl_nf_symlink = libnl_path + "libnl-nf-3.so.200"
+
+	DEBFILES = [
+		("DEBIAN/postinst", "share/postinst", [pod, frr, lk]),
+		("etc/ld.so.conf.d/ipsec.conf", "#libnaas/ld-ipsec.conf", [pod, frr]),
+		("usr/local/lib/" + libnaas_name, "#bin/" + libnaas_name, [pod, frr]),
+		("usr/local/lib/" + libnaas_sswan_proxy_name, "#bin/" + libnaas_sswan_proxy_name, [pod]),
+		(libnl, "/" + libnl, [pod, frr]),
+		(libnl_symlink, "/" + libnl_symlink, [pod, frr]),
+		(libnl_route, "/" + libnl_route, [pod, frr]),
+		(libnl_route_symlink, "/" + libnl_route_symlink, [pod, frr]),
+		(libnl_cli, "/" + libnl_cli, [pod, frr]),
+		(libnl_cli_symlink, "/" + libnl_cli_symlink, [pod, frr]),
+		(libnl_nf, "/" + libnl_nf, [pod, frr]),
+		(libnl_nf_symlink, "/" + libnl_nf_symlink, [pod, frr]),
+		("usr/local/bin/naas-vpp-lcpd", "#bin/naas-vpp-lcpd", [pod, frr]),
+		("usr/local/bin/naas-sswan-proxy", "#bin/naas-sswan-proxy", [pod]),
+		("etc/strongswan.conf", "#vpp_sswan/strongswan.conf", [pod]),
+		("usr/lib/ipsec/plugins/libstrongswan-kernel-vpp.so", "#bin/libstrongswan-kernel-vpp.so", [pod]),
+		("usr/local/lib/ipsec/plugins/libstrongswan-kernel-vpp.so", "#bin/libstrongswan-kernel-vpp.so", [pod]),
+		("lib/systemd/system/naas-keeper.service", "#vpp_sswan/naas-keeper.service", [pod]),
+		("usr/local/bin/naas-keeper.sh", "#vpp_sswan/naas-keeper.sh", [pod]),
+		("usr/local/bin/naas-updown.sh", "#vpp_sswan/naas-updown.sh", [pod]),
+		("usr/local/bin/naas-updown-server", "#dist/naas-updown-server", [frr]),
+		("usr/local/bin/naas-lkd", "#dist/naas-lkd", [lk]),
+	]
+
+	pod_deb = build_deb(env, DEBFILES, pod)
+	frr_deb = build_deb(env, DEBFILES, frr)
+	lk_deb = build_deb(env, DEBFILES, lk)
+
+
+ldflags = [
+	"-Wl,--copy-dt-needed-entries",
+#	'-L./bin',
+]
+
+cflags = [
+	'-g',
+	'-O0',
+	'-Wall',
+	'-std=gnu99',
+	'-I.',
+#	'-D_GNU_SOURCE',
+]
+
+git_version = get_git_version()
+
+cflags.append("-DNAAS_BUILD='\"%s\"'" % git_version)
+
+env = Environment(CC = COMPILER)
+env.Append(CFLAGS = flags_to_string(cflags))
+env.Append(LINKFLAGS = flags_to_string(ldflags))
+env.Append(LIBPATH = ["./bin"])
+
+bld = Builder(action = configurepy)
+env.Append(BUILDERS = { 'Configure': bld })
+env.Configure('naaspy/config.py', None)
+env.AlwaysBuild('naaspy/config.py')
+
+libnaas_name = 'libnaas.so.' + git_version
+libnaas_sswan_proxy_name = 'libnaas_sswan_proxy.so.' + git_version
+
+env['LINKCOM'] = '$LINK -o $TARGET $SOURCES $LINKFLAGS $__RPATH $_LIBDIRFLAGS $_LIBFLAGS'
+
+AddOption('--sswan', type='string', action='store', help='Strongswan sources')
+
+conf = Configure(env)
+set_HAVE_SEG6_LOCAL_VRFTABLE(conf)
+env = conf.Finish()
+
+libnaas = build_libnaas(env)
+libnaas_sswan_proxy = build_libnaas_sswan_proxy(env)
+vpp_sswan(env)
+
+prog = build_libnaas_app(env, "naas-vpp-lcpd", [ libnaas_name ], [ LIBNL3 ])
+Requires(prog, libnaas)
+
+prog = build_libnaas_app(env, "naas-sswan-proxy", [libnaas_name, libnaas_sswan_proxy_name], [])
+Requires(prog, libnaas_sswan_proxy)
+
+
+build_libnaas_test(env, 'test_api_simple')
+build_libnaas_test(env, 'test_sendto_vrf')
+
+if 'deb' in COMMAND_LINE_TARGETS:
+	build_debs(env)

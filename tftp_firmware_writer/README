@@ -1,0 +1,15 @@
+tftp_firmware_writer
+
+Simple program to write firmware on router
+
+BUILD:
+gcc -Wall tftp_firmare_writer.c -o tftp_firmare_writer
+
+USAGE:
+-h - for help
+Porgram listen UDP port (69),
+and reply with firmware_file to RPQ request.
+
+For my router - TL-WR841ND(ver 8.4)
+tftp_firmare_writer -b 192.168.0.66 /home/k.kogdenko/Downloads/mr3420v2_tp_recovery.bin
+and press reset button

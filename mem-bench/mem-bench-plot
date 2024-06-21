@@ -1,0 +1,84 @@
+#!/bin/sh
+
+OUTPUT=
+INPUT=
+#FILENAME=
+NAME=
+GNUPLOT_IN=
+DEBUG=
+PROG=
+
+DEBUG=0
+OUTPUT="output.png"
+PROG=$(basename "$0")
+
+print_usage()
+{
+	echo "Usage: $PROG [-hd] [-o output] {input[,input...]}"
+}
+
+gnuplot_in()
+{
+	GNUPLOT_IN+="$1"$'\n'
+}
+
+while getopts hdo: opt
+do
+	case "$opt" in
+	h) print_usage
+	   exit 0
+	   ;;
+	d) DEBUG=1
+	   ;;
+	o) OUTPUT=$OPTARG
+	   ;;
+	esac
+done
+
+shift $((OPTIND - 1))
+
+if [ "$#" -eq 0 ]; then	
+	print_usage
+	exit 1
+fi
+
+gnuplot_in "set linetype  1 lc rgb 'dark-violet' lw 1"
+gnuplot_in "set linetype  2 lc rgb '#009e73' lw 1"
+gnuplot_in "set linetype  3 lc rgb '#56b4e9' lw 1"
+gnuplot_in "set linetype  4 lc rgb '#e69f00' lw 1"
+gnuplot_in "set linetype  5 lc rgb '#0072b2' lw 1"
+gnuplot_in "set linetype  6 lc rgb '#e51e10' lw 1"
+gnuplot_in "set linetype  7 lc rgb 'black'   lw 1"
+gnuplot_in "set linetype  8 lc rgb 'gray50' lw 1"
+gnuplot_in "set linetype cycle  8"
+
+gnuplot_in "set term png"
+gnuplot_in "set output '$OUTPUT'"
+gnuplot_in "set xlabel 'Working Set Size'"
+gnuplot_in "set ylabel 'Cycles/List Element'"
+gnuplot_in "set key left bottom horizontal Left"
+gnuplot_in "set grid xtics"
+gnuplot_in "set grid ytics"
+gnuplot_in "set key outside"
+
+gnuplot_in "plot \\"
+
+for INPUT in "$@"
+do
+#	FILENAME=$(basename $INPUT)
+#	NAME=$(echo $FILENAME | cut -f 1 -d '.')
+
+#	NAME=$(realpath $INPUT)
+
+	NAME=$INPUT
+	
+	gnuplot_in "'$INPUT' using 1:2 title '$NAME' with linesp, \\"
+done
+
+if [ "$DEBUG" -eq 1 ]; then
+	echo "$GNUPLOT_IN"
+fi
+
+gnuplot <<- EOF
+$GNUPLOT_IN
+EOF
