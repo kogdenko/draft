@@ -16,6 +16,7 @@ gsettings set org.gnome.desktop.wm.keybindings switch-input-source "['<Control>S
 gsettings set org.gnome.desktop.wm.keybindings switch-input-source "['<Shift>Control_L']"
 __________________________________________________________
 Make bootable USB
+umount /dev/sdd1
 dd if=/home/k.kogdenko/Downloads/ubuntu-22.04.1-desktop-amd64.iso of=/dev/sdd bs=1M status=progress
 __________________________________________________________
 Start Week from Monaday
@@ -33,11 +34,41 @@ NETMAP
 make
 make install # modules and headers
 _________________________________________________________
+# kill socket
+ss -K dport = 4321
+
+_________________________________________________________
 GIT
 
+git diff > x.path
 git apply x.patch
 
+git format-patch -1 HEAD
 
+
+# Squash 3 commits intop one
+git reset --soft HEAD~3
+git commit -s
+
+# Remove files from git add
+git reset
+
+# Where branch started
+git merge-base master feat/nat46
+
+# tags with commits
+git show-ref --tags
+
+
+# squash commits
+_________________________________________________________
+VIM
+
+# Search and replace
+:s/search/replace/g
+
+# Search and replace in whole file with confirmation
+%s/search/replace/gc
 _________________________________________________________
 VIRT-MANAGER
 
@@ -126,7 +157,7 @@ modprobe vfio-pci
 dpdk-devbind.py -b uio_pci_generic 0000:04:00.0
 dpdk-devbind.py -b ixgbe 0000:08:00.1
 
-echo 512 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 mount -t hugetlbfs hugetlbfs /mnt/huge
 
 dpdk-testpmd -b 0000:08:00.1  -l 8-9 --proc-type=primary --file-prefix=pmd0 --vdev=net_memif0,role=client,socket=/run/vpp/memif.sock,secret=123,id=0,socket-abstract=no -- -i
@@ -233,6 +264,9 @@ make build
 make build-release
 cp ./build-root/build-vpp-native/vpp/bin/vppctl /usr/local/bin
 
+# Debug container
+docker run -it --rm -v `pwd`:/root/mts/ registry.resources.cloud.mts.ru/mws/network/vpp:2024.9.3-mws-master-23-10.9 bash
+
 __________________________________________________________
 DPKG
 
@@ -314,6 +348,9 @@ ipsec sa del 1
 
 clear trace
 trace add dpdk-input 10
+trace add memif-input 10
+trace add virtio-input 10
+trace add vhost-user-input 10 # VirtualEthernet0/0/2
 show trace
 
 show vlib graph
@@ -333,12 +370,22 @@ $ ifconfig vethb 10.50.1.1/24 up
 set acl-plugin acl permit src 10.10.10.0/24 dst 0.0.0.0/0
 show acl-plugin acl
 delete acl-plugin acl index 0
+show acl-plugin interface sw_if_index 18
+set acl-plugin interface VirtualEthernet0/0/2 input acl 17 del
+
 
 # Run test
 make test-help
 make TEST=test_nat44_ed test
 make TEST=test_nat44_ed test-debug
 make TEST=test_nat44_ed.TestNAT44EDMW.test_dynamic test-debug
+
+# Run test with gdb
+make test-start-vpp-debug-in-gdb VPP_WORKER_COUNT=4
+make test-debug TEST=test_cgnat DEBUG=attach
+
+# Run in several thread without gdb
+make test-debug TEST=test_cgnat VPP_WORKER_COUNT=4
 
 # ELOGS
 event-logger clear
@@ -348,7 +395,7 @@ show errors
 
 vat2 --dump-apis
 
-vpp_get_stats dump
+vpp_get_stats [socket-name /tmp/unittest-attach-gdb/stats.sock] dump
 
 # Submiting patch
 git clone ssh://kogdenko@gerrit.fd.io:29418/vpp.git
@@ -366,6 +413,13 @@ git push gerrit HEAD:refs/for/master%topic=39518
 # Change codding format
 cp /kakogde1/Projects/open_source/linux-6.7.1/.clang-format .
 clang-format -i ./src/plugins/nat/cgnat/lib/nat_syslog.c
+
+__________________________________________________________
+FRR
+
+vtysh -c 'show running-config'
+vtysh -c 'show ip route'
+vtysh -c 'show ip route table 1005'
 
 __________________________________________________________
 openvpn3
@@ -393,6 +447,9 @@ openvpn --config /home/ADMSK/kakogde1/Documents/CloudMTS-CPD-229.ovpn --auth-use
 __________________________________________________________
 kubectl
 
+kubectl config get-contexts
+kubectl get namespaces
+
 kubectl --kubeconfig /home/ADMSK/kakogde1/Documents/config get pods --all-namespaces
 kubectl config get-contexts --kubeconfig ~/Documents/config
 kubectl --kubeconfig ~/Documents/config --context msk-kcd-dev-iaas-net get nodes
@@ -408,11 +465,38 @@ kubectl describe nodes
 
 kubectl get -n dev-network-services ds/network-vpp-dev-vpc -oyaml
 
+kubectl logs --previous  vpp-pod
+
+kubectl get daemonset
+
 keubectl auto completion
 
-Daemon set
+# Сделать так что бы запускалося кастомный файл
+containers:
+  - name: network-vpp-dev
+    image: registry.resources.cloud.mts.ru/mws/network/vpp:eed8c90d
+    command:
+      - /bin/bash
+    args:
+      - '-c'
+      - /opt/node-conf/vpp-start.sh
+
 __________________________________________________________
 Cisco Trex
+
+# Build
+git clone https://github.com/cisco-system-traffic-generator/trex-core.git
+cd trex-core
+cd linux_dpdk
+./b configure
+./b build
+
+# or Download 
+
+# oerrors without entering service mode
+./trex-console
+> service # Enter service mode
+> service --off # Exit service mode
 
 # cat /etc/trex_cfg.yaml
 
@@ -435,8 +519,13 @@ Cisco Trex
 
 ./_t-rex-64 -c /etc/trex_cfg.yaml -i -c 1
 
+cd scripts
+cp stl/bench.py .
+
 ./trex-console
-start -f bench.py  -m 1
+> stats--ps
+> tui
+> start -f bench.py -m 1 -t vm=random
 
 __________________________________________________________
 scons
